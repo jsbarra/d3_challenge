@@ -1,5 +1,4 @@
 // @TODO: YOUR CODE HERE!
-
 var svgWidth = 960;
 var svgHeight = 500;
 
@@ -13,89 +12,99 @@ var margin = {
 var width = svgWidth - margin.left - margin.right;
 var height = svgHeight - margin.top - margin.bottom;
 
-// Append an SVG group that will hold our chart, and shift the 
-// latter by left and top margins.
-
-var svg = d3.select("body")
+// Create an SVG wrapper, append an SVG group that will hold our chart, and shift the latter by left and top margins.
+var svg = d3.select("#scatter")
   .append("svg")
   .attr("width", svgWidth)
   .attr("height", svgHeight);
 
-var group_chart = svg.append("g")
+var chartGroup = svg.append("g")
   .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-d3.select("body").append("div").attr("class", "tooltip").style("opacity", 0);
+  // Import Data
+d3.csv("data/data.csv").then(function(censusData){
 
-// Import Data
-d3.csv("data/data.csv").then(function(data) {
-
-
-  // Step 1: Parse Data
-   
-  data.forEach(function(data) {
-    data.poverty = +data.poverty;
-    data.healthcare = +data.healthcare;
-  });
-
-  // Step 2: Create scale functions
-
-  var xLinearScale = d3.scaleLinear().range([0, width]);
-  var yLinearScale = d3.scaleLinear().range([height, 0]);
-
-  // Step 3: Create axis functions
-
-  var bottomAxis = d3.axisBottom(xLinearScale);
-  var leftAxis = d3.axisLeft(yLinearScale);
-
-
-
-  // Step 4: Append Axes to the chart
-
-  group_chart.append("g")
-    .attr("transform", `translate(0, ${height})`)
-    .call(bottomAxis);
-
-  group_chart.append("g")
-    .call(leftAxis);
-
-   // Step 5: Circles
-  
-  var circlesGroup = group_chart.selectAll("circle")
-  .data(data)
-  .enter()
-  .append("circle")
-  .attr("cx", d => xLinearScale(d.healthcare +1.5))
-  .attr("cy", d => yLinearScale(d.poverty +0.3))
-  .attr("r", "12")
-  .attr("fill", "blue")
-  .attr("opacity", .7)
-
-  
-  // Step 6: Tool Tip
-  
-  var toolTip = d3.tip()
-    .attr("class", "tooltip")
-    .offset([80, -60])
-    .html(function(d) {
-      return (abbr + '%');
-      });
-
-  // Step 7: Create tooltip in the chart
-  
-  chartGroup.call(toolTip);
-
-  
-  circlesGroup.on("click", function(data) {
-    toolTip.show(data);
-  })
-    
-    .on("mouseout", function(data, index) {
-      toolTip.hide(data);
+    // Step 1: Parse Data/Cast as numbers
+    // ==============================
+    censusData.forEach(function(data){
+        data.healthcare = +data.healthcare;
+        data.poverty = +data.poverty;
     });
 
-//   Axes Labels
+    // Step 2: Create scale functions
+    // ==============================
+    var xLinearScale = d3.scaleLinear()
+      .domain([d3.min(censusData, d => d.poverty)*.9, 
+      d3.max(censusData, d => d.poverty)*1.05])
+      .range([0, width]);
 
-group_chart.append("text")
+    var yLinearScale = d3.scaleLinear()
+      .domain([d3.min(censusData, d => d.healthcare) *.8
+      , d3.max(censusData, d => d.healthcare)*1.05])
+      .range([height, 0]);
+    
+    // Step 3: Create axis functions
+    // ==============================
+    var bottomAxis = d3.axisBottom(xLinearScale);
+    var leftAxis = d3.axisLeft(yLinearScale);
+
+    // Step 4: Append Axes to the chart
+    // ==============================
+    chartGroup.append("g")
+      .attr("transform", `translate(0, ${height})`)
+      .call(bottomAxis);
+
+    chartGroup.append("g")
+      .call(leftAxis);
+    
+    // Step 5: Create Circles
+    // ==============================
+    var circlesGroup = chartGroup.selectAll("circle")
+    .data(censusData)
+    .enter()
+    .append("circle")
+    .attr("cx", d => xLinearScale(d.poverty))
+    .attr("cy", d => yLinearScale(d.healthcare))
+    .attr("r", "15")
+    .attr("fill", "skyblue")
+    .attr("opacity", ".8");
+    
+    // Add text for state abbreviations 
+    // ==============================
+    var textGroup = chartGroup.selectAll("text.abr")
+    .data(censusData)
+    .enter()
+    .append("text")
+    .attr("class", "abr")
+    .attr("x", d => xLinearScale(d.poverty)-12)
+    .attr("y", d => yLinearScale(d.healthcare)+3)
+    .attr("fill", "white")
+    .attr("opacity", "1")
+    .text(d => d.abbr)
+    
+    // Step 6: Initialize tool tip
+    // ==============================
+    var toolTip = d3.tip()
+    .attr("class", "tooltip")
+    .offset([80, -60])
+    .html(function (d) {
+      return (`${d.state}<br>Poverty: ${d.poverty}<br>Healthcare: ${d.healthcare}`);
+    });
+
+    // Step 7: Create tooltip in the chart
+    // ==============================
+    chartGroup.call(toolTip);
+
+    circlesGroup.on("click", function (data) {
+        toolTip.show(data, this);
+      })
+        // onmouseout event
+        .on("mouseout", function (data, index) {
+          toolTip.hide(data);
+        });
+
+    // Create axes labels
+    chartGroup.append("text")
       .attr("transform", "rotate(-90)")
       .attr("y", 0 - margin.left + 40)
       .attr("x", 0 - (height / 2))
